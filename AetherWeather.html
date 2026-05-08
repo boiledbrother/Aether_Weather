@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>AETHER | Climate Intelligence</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background: #03060c;
+            color: #f0f4ff;
+        }
+
+        canvas#bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .glass {
+            background: rgba(12, 20, 35, 0.42);
+            backdrop-filter: blur(22px);
+            border-radius: 44px;
+            border: 1px solid rgba(90, 150, 240, 0.35);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            transition: all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        .glass:hover {
+            border-color: rgba(120, 180, 255, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .app-container {
+            position: relative;
+            z-index: 10;
+            width: 100vw;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            padding: 26px 34px;
+        }
+
+        .app-container::-webkit-scrollbar { width: 5px; }
+        .app-container::-webkit-scrollbar-track { background: rgba(30, 40, 65, 0.4); border-radius: 10px; }
+        .app-container::-webkit-scrollbar-thumb { background: rgba(80, 140, 230, 0.6); border-radius: 10px; }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 18px;
+        }
+
+        .logo h1 {
+            font-size: 2.1rem;
+            font-weight: 700;
+            background: linear-gradient(125deg, #d4eaff, #7aacff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .search-area {
+            position: relative;
+            width: 340px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            background: rgba(8, 16, 28, 0.7);
+            backdrop-filter: blur(18px);
+            padding: 6px 8px 6px 22px;
+            border-radius: 60px;
+            border: 1px solid rgba(90, 150, 240, 0.5);
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: #f0f4ff;
+            font-size: 0.95rem;
+            width: 100%;
+            outline: none;
+        }
+
+        .search-box input::placeholder { color: #8aa3cc; }
+
+        .search-box button {
+            background: #2b5982;
+            border: none;
+            padding: 8px 26px;
+            border-radius: 60px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .search-box button:hover { background: #4078aa; transform: scale(1.02); }
+
+        .autocomplete-list {
+            position: absolute;
+            top: 65px;
+            left: 0;
+            right: 0;
+            background: rgba(18, 28, 45, 0.96);
+            backdrop-filter: blur(28px);
+            border-radius: 28px;
+            border: 1px solid rgba(100, 160, 250, 0.4);
+            max-height: 280px;
+            overflow-y: auto;
+            z-index: 200;
+            display: none;
+        }
+
+        .autocomplete-item {
+            padding: 14px 22px;
+            cursor: pointer;
+            transition: 0.1s;
+            font-size: 0.85rem;
+            border-bottom: 1px solid rgba(100, 140, 210, 0.2);
+        }
+
+        .autocomplete-item:hover { background: rgba(70, 120, 210, 0.35); }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.6fr;
+            gap: 26px;
+            margin-bottom: 28px;
+        }
+
+        .weather-primary { padding: 32px 28px; }
+        .temp-massive { font-size: 5.4rem; font-weight: 800; margin: 18px 0 6px; letter-spacing: -3px; }
+        .condition { font-size: 1.2rem; opacity: 0.85; text-transform: capitalize; }
+
+        .meta-strip {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 34px;
+            gap: 16px;
+        }
+
+        .meta-item { flex: 1; text-align: center; }
+        .meta-label { font-size: 0.7rem; text-transform: uppercase; opacity: 0.55; letter-spacing: 0.5px; }
+        .meta-value { font-size: 1.2rem; font-weight: 700; margin-top: 6px; }
+
+        .chart-panel { padding: 28px; }
+        .chart-container { height: 240px; margin-top: 14px; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card { padding: 18px 12px; text-align: center; }
+        .stat-number { font-size: 1.6rem; font-weight: 700; margin-top: 10px; }
+
+        .forecast-panel { padding: 28px; margin-bottom: 28px; }
+        .forecast-row { display: flex; gap: 18px; margin-top: 24px; flex-wrap: wrap; }
+
+        .forecast-day-card {
+            flex: 1;
+            background: rgba(30, 48, 72, 0.4);
+            backdrop-filter: blur(10px);
+            border-radius: 36px;
+            padding: 18px 12px;
+            text-align: center;
+            transition: 0.2s;
+        }
+
+        .forecast-temp { font-size: 1.5rem; font-weight: 700; margin: 8px 0; }
+        .air-quality { padding: 20px; margin-top: 10px; }
+
+        @media (max-width: 1100px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(3,1fr); }
+            .app-container { padding: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="app-container">
+        <div class="header-row">
+            <div class="logo">
+                <h1>AETHER</h1>
+                <div style="font-size: 0.7rem; opacity: 0.55; letter-spacing: 1.5px;">CLIMATE VISUALIZATION</div>
+            </div>
+            <div class="search-area">
+                <div class="search-box glass">
+                    <input type="text" id="cityInput" placeholder="Search city... London, Tokyo, New York" autocomplete="off">
+                    <button id="searchBtn">FIND</button>
+                </div>
+                <div id="autocompleteDropdown" class="autocomplete-list"></div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="weather-primary glass">
+                <div id="cityName" style="font-size: 1.6rem; font-weight: 600;">Loading atmosphere</div>
+                <div class="temp-massive" id="mainTemp">--°C</div>
+                <div class="condition" id="conditionText">---</div>
+                <div class="meta-strip">
+                    <div class="meta-item"><div class="meta-label">HUMIDITY</div><div class="meta-value" id="humidity">--%</div></div>
+                    <div class="meta-item"><div class="meta-label">WIND</div><div class="meta-value" id="wind">-- km/h</div></div>
+                    <div class="meta-item"><div class="meta-label">PRESSURE</div><div class="meta-value" id="pressure">-- hPa</div></div>
+                </div>
+            </div>
+            <div class="chart-panel glass">
+                <div style="font-weight: 600;">THERMAL TREND · 24H</div>
+                <div class="chart-container">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card glass"><div class="meta-label">FEELS LIKE</div><div class="stat-number" id="feelsLike">--°</div></div>
+            <div class="stat-card glass"><div class="meta-label">UV INDEX</div><div class="stat-number" id="uvIndex">--</div></div>
+            <div class="stat-card glass"><div class="meta-label">VISIBILITY</div><div class="stat-number" id="visibility">-- km</div></div>
+            <div class="stat-card glass"><div class="meta-label">CLOUD COVER</div><div class="stat-number" id="cloudCover">--%</div></div>
+            <div class="stat-card glass"><div class="meta-label">RAIN (1H)</div><div class="stat-number" id="rain">-- mm</div></div>
+            <div class="stat-card glass"><div class="meta-label">SNOW (1H)</div><div class="stat-number" id="snow">-- cm</div></div>
+        </div>
+
+        <div class="forecast-panel glass">
+            <div style="font-weight: 600;">7 DAY FORECAST</div>
+            <div class="forecast-row" id="forecastContainer"></div>
+        </div>
+
+        <div class="air-quality glass">
+            <div style="font-weight: 600; margin-bottom: 12px;">AIR QUALITY INDEX (AQI) & PARTICULATE MATTER</div>
+            <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
+                <div><span style="opacity:0.6;">AQI (European)</span><br><strong id="aqiValue">--</strong></div>
+                <div><span style="opacity:0.6;">PM2.5</span><br><strong id="pm25">-- µg/m³</strong></div>
+                <div><span style="opacity:0.6;">PM10</span><br><strong id="pm10">-- µg/m³</strong></div>
+                <div><span style="opacity:0.6;">CO₂ (carbon)</span><br><strong id="co2">-- ppm</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.128.0/build/three.module.js" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        const canvas = document.getElementById('bg-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        
+        const scene = new THREE.Scene();
+        scene.background = null;
+        scene.fog = new THREE.FogExp2(0x03060c, 0.006);
+        
+        const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 1.3, 14);
+        
+        const ambient = new THREE.AmbientLight(0x1a2a44);
+        scene.add(ambient);
+        const mainLight = new THREE.DirectionalLight(0xfff2e0, 1.1);
+        mainLight.position.set(5, 7, 3);
+        scene.add(mainLight);
+        const backFill = new THREE.PointLight(0x5588aa, 0.45);
+        backFill.position.set(-2, 2, -4);
+        scene.add(backFill);
+        
+        const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(0.85, 128, 128), new THREE.MeshStandardMaterial({ color: 0xffaa77, emissive: 0xff5533, emissiveIntensity: 0.7 }));
+        sunMesh.position.set(6, 4.5, -7);
+        scene.add(sunMesh);
+        
+        const cloudGroup = new THREE.Group();
+        const cloudMat = new THREE.MeshStandardMaterial({ color: 0xcceeff, transparent: true, opacity: 0.68, emissive: 0x335577 });
+        function addCloud(x, y, z, s) {
+            const g = new THREE.Group();
+            [0.7, 0.9, 0.65, 0.8, 0.6].forEach((sz, idx) => {
+                const sph = new THREE.Mesh(new THREE.SphereGeometry(sz, 24, 24), cloudMat);
+                sph.position.set(idx * 0.55 - 1.0, Math.sin(idx) * 0.15, idx * 0.25);
+                g.add(sph);
+            });
+            g.position.set(x, y, z);
+            g.scale.set(s, s, s);
+            cloudGroup.add(g);
+        }
+        [[-4,2.4,-2], [-1,3.0,-3.5], [3,2.2,-2], [5.5,2.8,-4.5], [0,3.3,-5], [-3,1.8,-1.5], [2,1.9,-3], [4.5,2.5,-6]].forEach(p => addCloud(p[0], p[1], p[2], 0.85 + Math.random()*0.5));
+        scene.add(cloudGroup);
+        
+        const pCount = 2400;
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(pCount * 3);
+        for (let i=0; i<pCount; i++) { pPos[i*3] = (Math.random() - 0.5) * 52; pPos[i*3+1] = (Math.random() - 0.5) * 16; pPos[i*3+2] = (Math.random() - 0.5) * 32 - 12; }
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0x88bbff, size: 0.045, transparent: true, opacity: 0.32 }));
+        scene.add(particles);
+        
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = new Float32Array(1800 * 3);
+        for (let i=0; i<1800; i++) { starPos[i*3] = (Math.random() - 0.5) * 240; starPos[i*3+1] = (Math.random() - 0.5) * 120; starPos[i*3+2] = (Math.random() - 0.5) * 100 - 60; }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xaaccff, size: 0.07, transparent: true, opacity: 0.45 }));
+        scene.add(stars);
+        
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => { mouseX = (e.clientX / window.innerWidth) * 2 - 1; mouseY = (e.clientY / window.innerHeight) * 2 - 1; });
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            camera.position.x += (mouseX * 0.45 - camera.position.x) * 0.045;
+            camera.position.y += (-mouseY * 0.28 - camera.position.y) * 0.045;
+            camera.lookAt(0, 1.2, 0);
+            cloudGroup.rotation.y += 0.0005;
+            cloudGroup.rotation.x = Math.sin(Date.now() * 0.0002) * 0.035;
+            particles.rotation.y += 0.0004;
+            stars.rotation.x += 0.0002;
+            sunMesh.rotation.z += 0.001;
+            renderer.render(scene, camera);
+        }
+        animate();
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        
+        // Weather Logic
+        const cityInput = document.getElementById('cityInput');
+        const autocompleteDiv = document.getElementById('autocompleteDropdown');
+        let currentChart = null;
+        
+        async function searchCities(query) {
+            if (query.length < 2) return [];
+            try {
+                const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=8&language=en`);
+                const data = await res.json();
+                return data.results ? data.results.map(c => ({ name: c.name, country: c.country, lat: c.latitude, lon: c.longitude })) : [];
+            } catch(e) { return []; }
+        }
+        
+        async function updateAutocomplete() {
+            const q = cityInput.value.trim();
+            if (q.length < 2) { autocompleteDiv.style.display = 'none'; return; }
+            const cities = await searchCities(q);
+            if (!cities.length) { autocompleteDiv.style.display = 'none'; return; }
+            autocompleteDiv.innerHTML = '';
+            cities.forEach(city => {
+                const div = document.createElement('div');
+                div.className = 'autocomplete-item';
+                div.textContent = `${city.name}, ${city.country}`;
+                div.addEventListener('click', () => {
+                    cityInput.value = city.name;
+                    autocompleteDiv.style.display = 'none';
+                    fetchWeather(city.lat, city.lon, city.name);
+                });
+                autocompleteDiv.appendChild(div);
+            });
+            autocompleteDiv.style.display = 'block';
+        }
+        
+        cityInput.addEventListener('input', () => { clearTimeout(window.autoTimeout); window.autoTimeout = setTimeout(updateAutocomplete, 350); });
+        document.addEventListener('click', (e) => { if (!autocompleteDiv.contains(e.target) && e.target !== cityInput) autocompleteDiv.style.display = 'none'; });
+        
+        async function fetchWeather(lat, lon, cityName) {
+            const loader = document.createElement('div');
+            loader.style.cssText = 'position:fixed;bottom:30px;right:30px;background:rgba(15,25,45,0.8);backdrop-filter:blur(20px);padding:12px 28px;border-radius:60px;z-index:1000;font-size:0.8rem;border:1px solid #6ea5ff';
+            loader.innerHTML = 'syncing climate data';
+            document.body.appendChild(loader);
+            
+            try {
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,wind_speed_10m&hourly=temperature_2m,visibility&daily=weather_code,temperature_2m_max,temperature_2m_min,rain_sum,uv_index_max&timezone=auto`;
+                const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=european_aqi,pm10,pm2_5,carbon_monoxide`;
+                const [weatherRes, airRes] = await Promise.all([fetch(weatherUrl), fetch(airUrl)]);
+                const weather = await weatherRes.json();
+                const air = airRes.ok ? await airRes.json() : null;
+                
+                const current = weather.current;
+                const daily = weather.daily;
+                const hourly = weather.hourly;
+                
+                document.getElementById('cityName').innerHTML = cityName;
+                document.getElementById('mainTemp').innerHTML = `${Math.round(current.temperature_2m)}°C`;
+                const wCode = current.weather_code;
+                const condition = {0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',51:'Light drizzle',61:'Rain',71:'Snow',95:'Thunderstorm'}[wCode] || 'Variable';
+                document.getElementById('conditionText').innerHTML = condition;
+                document.getElementById('humidity').innerHTML = `${current.relative_humidity_2m}%`;
+                document.getElementById('wind').innerHTML = `${Math.round(current.wind_speed_10m)} km/h`;
+                document.getElementById('pressure').innerHTML = `${Math.round(current.pressure_msl)} hPa`;
+                document.getElementById('feelsLike').innerHTML = `${Math.round(current.apparent_temperature)}°`;
+                document.getElementById('cloudCover').innerHTML = `${current.cloud_cover}%`;
+                document.getElementById('rain').innerHTML = `${current.rain || 0} mm`;
+                document.getElementById('snow').innerHTML = `${current.snowfall || 0} cm`;
+                if (daily.uv_index_max) document.getElementById('uvIndex').innerHTML = daily.uv_index_max[0].toFixed(1);
+                if (hourly.visibility) document.getElementById('visibility').innerHTML = `${(hourly.visibility[0]/1000).toFixed(1)} km`;
+                
+                if (air && air.current) {
+                    document.getElementById('aqiValue').innerHTML = air.current.european_aqi || '--';
+                    document.getElementById('pm25').innerHTML = air.current.pm2_5 ? `${Math.round(air.current.pm2_5)} µg/m³` : '--';
+                    document.getElementById('pm10').innerHTML = air.current.pm10 ? `${Math.round(air.current.pm10)} µg/m³` : '--';
+                    document.getElementById('co2').innerHTML = air.current.carbon_monoxide ? `${Math.round(air.current.carbon_monoxide)} ppm` : '--';
+                }
+                
+                const forecastContainer = document.getElementById('forecastContainer');
+                forecastContainer.innerHTML = '';
+                for (let i = 0; i < 7; i++) {
+                    const max = Math.round(daily.temperature_2m_max[i]);
+                    const min = Math.round(daily.temperature_2m_min[i]);
+                    const date = new Date(daily.time[i]);
+                    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    const icons = {0:'☀️',1:'⛅',2:'⛅',3:'☁️',45:'🌫️',51:'🌧️',61:'🌧️',71:'❄️',95:'⛈️'};
+                    const icon = icons[wCode] || '🌤️';
+                    forecastContainer.innerHTML += `<div class="forecast-day-card"><div style="font-weight:600;">${dayName}</div><div style="font-size:1.5rem;">${icon}</div><div class="forecast-temp">${max}°</div><div style="font-size:0.8rem;opacity:0.7;">${min}°</div><div style="font-size:0.7rem;">💧 ${daily.rain_sum[i] || 0}mm</div></div>`;
+                }
+                
+                const temps = hourly.temperature_2m.slice(0, 24);
+                const ctx = document.getElementById('tempChart').getContext('2d');
+                if (currentChart) currentChart.destroy();
+                currentChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: temps.map((_,i)=>`${i}h`), datasets: [{ label: 'Temperature °C', data: temps, borderColor: '#7aacff', backgroundColor: 'rgba(100,170,255,0.12)', borderWidth: 3, pointRadius: 3, tension: 0.35, fill: true }] },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#bbddff' } } }, scales: { y: { grid: { color: 'rgba(100,150,240,0.2)' }, ticks: { color: '#ccddff' } }, x: { ticks: { color: '#ccddff' } } } }
+                });
+                
+                const intensity = Math.max(0.45, 1 - (current.cloud_cover / 100) * 0.6);
+                mainLight.intensity = intensity;
+                sunMesh.material.emissiveIntensity = wCode === 0 ? 0.95 : 0.4;
+            } catch(e) { document.getElementById('cityName').innerHTML = 'Error loading data'; }
+            finally { loader.remove(); }
+        }
+        
+        document.getElementById('searchBtn').addEventListener('click', async () => {
+            const query = cityInput.value.trim();
+            if (!query) return;
+            const cities = await searchCities(query);
+            if (cities.length) fetchWeather(cities[0].lat, cities[0].lon, cities[0].name);
+            autocompleteDiv.style.display = 'none';
+        });
+        cityInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') document.getElementById('searchBtn').click(); });
+        
+        fetchWeather(51.5074, -0.1278, 'London');
+    </script>
+</body>
+</html>
